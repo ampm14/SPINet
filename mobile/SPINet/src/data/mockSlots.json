@@ -1,0 +1,7 @@
+[
+  { "id": "S1", "name": "A1", "status": "free", "lat": 37.785834, "lng": -122.406417 },
+  { "id": "S2", "name": "A2", "status": "occupied", "lat": 37.7859, "lng": -122.4068 },
+  { "id": "S3", "name": "B1", "status": "free", "lat": 37.7861, "lng": -122.4063 },
+  { "id": "S4", "name": "B2", "status": "occupied", "lat": 37.7855, "lng": -122.4069 },
+  { "id": "S5", "name": "C1", "status": "free", "lat": 37.7857, "lng": -122.4065 }
+]

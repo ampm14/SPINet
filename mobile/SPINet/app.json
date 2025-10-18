@@ -1,48 +1,27 @@
 {
   "expo": {
     "name": "SPINet",
-    "slug": "SPINet",
+    "slug": "spinet",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "spinet",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "scheme": "spinet",                    
+    "icon": "./assets/images/logo.png",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.yspinet.app"   
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+      "package": "com.spinet.app",  
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCUswTftRzdaU5zwzYuXGLSPMVu-HDlemY"
         }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    }
+      }     
+    },
+    "assetBundlePatterns": ["**/*"]
   }
 }
