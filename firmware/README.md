@@ -1,4 +1,0 @@
-- Edit WIFI_SSID, WIFI_PASS and BACKEND_URL (or define via build flags).
-- Build with PlatformIO or Arduino IDE for an ESP32 dev board.
-- Uses HC-SR04 timing (change pins to match your wiring).
-- Simple hysteresis implemented in loop to reduce flicker.
