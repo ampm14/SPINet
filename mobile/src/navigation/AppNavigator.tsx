@@ -8,6 +8,7 @@ import AdminLogin from "../screens/Auth/AdminLogin";
 import UserLogin from "../screens/Auth/UserLogin";
 import Signup from "../screens/Auth/Signup";
 import AdminDashboard from "../screens/Admin/AdminDashboard";
+import ParkingLot from "../screens/Admin/ParkingLot";
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +25,7 @@ export default function AppNavigator() {
         <Stack.Screen name="UserLogin" component={UserLogin} />
         <Stack.Screen name="Signup" component={Signup} />
         <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+        <Stack.Screen name="LotMap" component={ParkingLot} />
       </Stack.Navigator>
     </NavigationContainer>
   );
