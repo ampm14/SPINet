@@ -1,0 +1,30 @@
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
+import Splash from "../screens/Auth/Splash";
+import Welcome from "../screens/Auth/Welcome";
+import AdminLogin from "../screens/Auth/AdminLogin";
+import UserLogin from "../screens/Auth/UserLogin";
+import Signup from "../screens/Auth/Signup";
+import AdminDashboard from "../screens/Admin/AdminDashboard";
+
+const Stack = createNativeStackNavigator();
+
+export default function AppNavigator() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Splash"
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="Splash" component={Splash} />
+        <Stack.Screen name="Welcome" component={Welcome} />
+        <Stack.Screen name="AdminLogin" component={AdminLogin} />
+        <Stack.Screen name="UserLogin" component={UserLogin} />
+        <Stack.Screen name="Signup" component={Signup} />
+        <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
