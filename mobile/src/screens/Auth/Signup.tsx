@@ -14,54 +14,52 @@ export default function Signup({ navigation }: any) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"Admin" | "Parker" | null>(null);
+  const [role, setRole] = useState<"Admin" | "User" | null>(null);
   const [loading, setLoading] = useState(false);
 
-const handleSignup = async () => {
-  if (!name || !email || !password || !role) {
-    Alert.alert("Missing info", "Please fill out all fields.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const existingRaw = await AsyncStorage.getItem("users");
-    const existing = existingRaw ? JSON.parse(existingRaw) : [];
-
-    // Check for existing email
-    const alreadyExists = existing.some(
-      (u: any) => u.email.trim().toLowerCase() === email.trim().toLowerCase()
-    );
-
-    if (alreadyExists) {
-      Alert.alert("Duplicate Account", "An account with this email already exists.");
-      setLoading(false);
+  const handleSignup = async () => {
+    if (!name || !email || !password || !role) {
+      Alert.alert("Missing info", "Please fill out all fields.");
       return;
     }
 
-    // Create new user
-    const newUser = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-      role,
-      createdAt: new Date().toISOString(),
-    };
+    setLoading(true);
 
-    const updatedUsers = [...existing, newUser];
-    await AsyncStorage.setItem("users", JSON.stringify(updatedUsers));
+    try {
+      const existingRaw = await AsyncStorage.getItem("users");
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
 
-    Alert.alert("Success", `Account created for ${name} (${role}).`);
-    navigation.navigate("Welcome");
-  } catch (err) {
-    console.error("Signup error:", err);
-    Alert.alert("Error", "Something went wrong during signup.");
-  } finally {
-    setLoading(false);
-  }
-};
+      const alreadyExists = existing.some(
+        (u: any) => u.email.trim().toLowerCase() === email.trim().toLowerCase()
+      );
+
+      if (alreadyExists) {
+        Alert.alert("Duplicate Account", "An account with this email already exists.");
+        setLoading(false);
+        return;
+      }
+
+      const newUser = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedUsers = [...existing, newUser];
+      await AsyncStorage.setItem("users", JSON.stringify(updatedUsers));
+
+      Alert.alert("Success", `Account created for ${name} (${role}).`);
+      navigation.navigate("Welcome");
+    } catch (err) {
+      console.error("Signup error:", err);
+      Alert.alert("Error", "Something went wrong during signup.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -115,17 +113,17 @@ const handleSignup = async () => {
         <Pressable
           style={[
             styles.roleBtn,
-            role === "Parker" && styles.roleBtnActive,
+            role === "User" && styles.roleBtnActive,
           ]}
-          onPress={() => setRole("Parker")}
+          onPress={() => setRole("User")}
         >
           <Text
             style={[
               styles.roleText,
-              role === "Parker" && styles.roleTextActive,
+              role === "User" && styles.roleTextActive,
             ]}
           >
-            Parker
+            User
           </Text>
         </Pressable>
       </View>

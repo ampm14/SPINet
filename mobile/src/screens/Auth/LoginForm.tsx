@@ -22,7 +22,7 @@ export default function LoginForm({
   onSuccess,
   showGuest = true,
 }: {
-  expectedRole?: "Admin" | "Parker";
+  expectedRole?: "Admin" | "User";
   onSuccess: (user: any) => void;
   showGuest?: boolean;
 }) {
@@ -107,7 +107,7 @@ export default function LoginForm({
 
       {showGuest && (
         <View style={styles.guestRow}>
-          <Text style={styles.guestText}>Or</Text>
+          <Text style={styles.guestText}></Text>
         </View>
       )}
     </View>

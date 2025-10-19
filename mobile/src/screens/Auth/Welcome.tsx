@@ -1,3 +1,4 @@
+// src/screens/Auth/Welcome.tsx
 import React from "react";
 import { View, Text, StyleSheet, Image, Pressable } from "react-native";
 import { theme } from "../../styles/theme";
@@ -8,7 +9,6 @@ export default function Welcome({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Image source={logo} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.title}>SPINet</Text>
       <Text style={styles.subtitle}>Smart Parking IoT Network</Text>
 
       <View style={styles.section}>
@@ -31,7 +31,7 @@ export default function Welcome({ navigation }: any) {
             ]}
             onPress={() => navigation.navigate("UserLogin")}
           >
-            <Text style={styles.roleTextOutline}>Parker</Text>
+            <Text style={styles.roleTextOutline}>User</Text>
           </Pressable>
         </View>
       </View>
@@ -59,19 +59,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  logo: { width: 160, height: 160, marginBottom: 20 },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: theme.colors.textPrimary,
-    letterSpacing: 0.5,
+  logo: {
+    width: 230,
+    height: 100,
+    marginBottom: 0.01, // tightened spacing
   },
   subtitle: {
     color: theme.colors.textSecondary,
-    marginTop: 4,
-    fontSize: 14,
+    fontSize: 16,
+    marginBottom: 78,
   },
-  section: { marginTop: 40, width: "100%", alignItems: "center" },
+  section: { width: "100%", alignItems: "center" },
   prompt: {
     fontSize: 16,
     color: theme.colors.textSecondary,

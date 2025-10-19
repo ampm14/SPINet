@@ -1,4 +1,5 @@
 // src/screens/Parker/UserDashboard.tsx
+// only layout tweaks from previous version
 import React, { useState } from "react";
 import {
   View,
@@ -19,29 +20,27 @@ import { mockSlots } from "../../data/mockData";
 type Slot = typeof mockSlots[number];
 
 const SLOT_COLORS: Record<string, string> = {
-  parked: "#EF4444", // red
-  reserved: "#FACC15", // amber
-  vacant: "#22C55E", // green
+  parked: "#EF4444",
+  reserved: "#FACC15",
+  vacant: "#22C55E",
 };
-
-function formatTs(iso?: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString();
-}
 
 export default function UserDashboard(): JSX.Element {
   const navigation = useNavigation<any>();
   const [selected, setSelected] = useState<Slot | null>(null);
+  const [slots, setSlots] = useState([...mockSlots]);
 
-  const orderedSlots = [...mockSlots].sort((a, b) => a.slotId.localeCompare(b.slotId));
+  const myReservation = slots.find(
+    (s) => s.status === "reserved" && s.slotId === "A2"
+  );
 
-  // Grid config
   const columns = 4;
   const screenW = Dimensions.get("window").width;
   const gridPadding = 24;
   const gap = 14;
-  const tileSize = Math.floor((screenW - gridPadding * 2 - gap * (columns - 1)) / columns);
+  const tileSize = Math.floor(
+    (screenW - gridPadding * 2 - gap * (columns - 1)) / columns
+  );
 
   const handleSlotPress = (slot: Slot) => {
     if (slot.status === "vacant") {
@@ -51,21 +50,59 @@ export default function UserDashboard(): JSX.Element {
     }
   };
 
+  const cancelReservation = () => {
+    if (!myReservation) return;
+    setSlots((prev) =>
+      prev.map((s) =>
+        s.slotId === myReservation.slotId
+          ? { ...s, status: "vacant", owner: undefined }
+          : s
+      )
+    );
+  };
+
+  const orderedSlots = [...slots].sort((a, b) =>
+    a.slotId.localeCompare(b.slotId)
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Available Slots</Text>
-      <Text style={styles.subheader}>
-        Tap a free slot to reserve. Reserved and occupied are view-only.
-      </Text>
 
-      <View style={[styles.gridContainer, { paddingHorizontal: gridPadding }]}>
+      {/* Greeting Section */}
+      <View style={styles.greetingBox}>
+        <Text style={styles.greeting}>Hey Grant Sanderson,</Text>
+        <Text style={styles.reservedText}>
+          You have reserved <Text style={styles.highlight}>A3</Text>
+        </Text>
+      </View>
+
+      {/* My Reservation Section */}
+      {myReservation && (
+        <View style={styles.reservationCard}>
+          <View style={styles.resRow}>
+            <View>
+              <Text style={styles.resTitle}>My Reservation</Text>
+              <Text style={styles.resSubtitle}>
+                Slot {myReservation.slotId}
+              </Text>
+            </View>
+            <Pressable style={styles.cancelBtn} onPress={cancelReservation}>
+              <Text style={styles.cancelTxt}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* Grid placed centrally */}
+      <View style={[styles.gridWrapper]}>
         <View
           style={{
-            width: tileSize * columns + gap * (columns - 1),
             flexDirection: "row",
             flexWrap: "wrap",
             justifyContent: "center",
             alignItems: "center",
+            width: tileSize * columns + gap * (columns - 1),
           }}
         >
           {orderedSlots.map((slot, index) => {
@@ -87,14 +124,16 @@ export default function UserDashboard(): JSX.Element {
                 onPress={() => handleSlotPress(slot)}
               >
                 <Text style={styles.tileLabel}>{slot.slotId}</Text>
-                <Text style={styles.tileStatus}>{slot.status.toUpperCase()}</Text>
+                <Text style={styles.tileStatus}>
+                  {slot.status.toUpperCase()}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
       </View>
 
-      {/* Modal for reserved/occupied details (read-only) */}
+      {/* Modal */}
       <Modal visible={!!selected} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -103,7 +142,10 @@ export default function UserDashboard(): JSX.Element {
                 <Text style={styles.modalTitle}>
                   {selected?.slotId} — {selected?.status.toUpperCase()}
                 </Text>
-                <Pressable onPress={() => setSelected(null)} style={styles.closeBtn}>
+                <Pressable
+                  onPress={() => setSelected(null)}
+                  style={styles.closeBtn}
+                >
                   <Text style={styles.closeTxt}>Close</Text>
                 </Pressable>
               </View>
@@ -111,19 +153,12 @@ export default function UserDashboard(): JSX.Element {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Slot Info</Text>
                 <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Area:</Text> {selected?.area ?? "—"}
+                  <Text style={styles.bold}>Area:</Text>{" "}
+                  {selected?.area ?? "—"}
                 </Text>
                 <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Last updated:</Text> {formatTs(selected?.updatedAt)}
-                </Text>
-                <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Status:</Text> {selected?.status.toUpperCase()}
-                </Text>
-                <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Availability:</Text>{" "}
-                  {selected?.status === "reserved"
-                    ? "Reserved — expected to free after reservation period."
-                    : "Occupied — will free when vehicle leaves."}
+                  <Text style={styles.bold}>Status:</Text>{" "}
+                  {selected?.status.toUpperCase()}
                 </Text>
               </View>
             </ScrollView>
@@ -136,6 +171,7 @@ export default function UserDashboard(): JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+
   header: {
     fontSize: 22,
     fontWeight: "800",
@@ -143,16 +179,60 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: "center",
   },
-  subheader: {
+
+  greetingBox: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  greeting: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: theme.colors.textPrimary,
+  },
+  reservedText: {
+    fontSize: 16,
     color: theme.colors.textSecondary,
-    marginBottom: 20,
-    textAlign: "center",
+    marginTop: 2,
+  },
+  highlight: {
+    fontWeight: "800",
+    color: theme.colors.primary,
   },
 
-  gridContainer: {
-    flex: 1,
+  reservationCard: {
+    backgroundColor: theme.colors.surface ?? "#fff",
+    borderRadius: 10,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 30,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  resRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
+  },
+  resTitle: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary },
+  resSubtitle: { fontSize: 13, color: theme.colors.textSecondary },
+  cancelBtn: {
+    borderWidth: 1,
+    borderColor: "#EF4444",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  cancelTxt: { color: "#EF4444", fontWeight: "700" },
+
+  gridWrapper: {
+    flex: 1,
+    justifyContent: "center", // centers vertically
+    alignItems: "center",
+    marginBottom: 40, // brings grid down to middle visually
   },
   tile: {
     borderRadius: 12,
@@ -168,11 +248,7 @@ const styles = StyleSheet.create({
       android: { elevation: 5 },
     }),
   },
-  tileLabel: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 20,
-  },
+  tileLabel: { color: "#fff", fontWeight: "800", fontSize: 20 },
   tileStatus: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 12,
@@ -207,9 +283,18 @@ const styles = StyleSheet.create({
   },
   closeBtn: { padding: 6 },
   closeTxt: { color: theme.colors.primary, fontWeight: "700" },
-
-  section: { marginTop: 12, borderTopWidth: 0.5, borderTopColor: "#eee", paddingTop: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, marginBottom: 6 },
+  section: {
+    marginTop: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: "#eee",
+    paddingTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.textPrimary,
+    marginBottom: 6,
+  },
   sectionRow: { color: theme.colors.textSecondary, marginBottom: 6, fontSize: 13 },
   bold: { fontWeight: "700", color: theme.colors.textPrimary },
 });
