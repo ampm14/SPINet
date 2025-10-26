@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify
 from datetime import datetime
+from flask_cors import CORS   # ✅ allow requests from other devices (like Expo Go)
 
 app = Flask(__name__)
+CORS(app)                     # ✅ enable CORS globally
+
 data_store = {}
 
 @app.route('/data', methods=['POST'])

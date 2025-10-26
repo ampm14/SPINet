@@ -1,5 +1,5 @@
 // src/screens/Admin/ParkingLot.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,13 +14,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../styles/theme";
 import { mockSlots } from "../../data/mockData";
+import { fetchLiveSensor } from "../../api/sensors";
 
 type Slot = typeof mockSlots[number];
 
 const SLOT_COLORS: Record<string, string> = {
-  parked: "#EF4444", // red
-  reserved: "#FACC15", // amber
-  vacant: "#22C55E", // green
+  parked: "#EF4444",
+  reserved: "#FACC15",
+  vacant: "#22C55E",
 };
 
 function formatTs(iso?: string | null) {
@@ -31,10 +32,34 @@ function formatTs(iso?: string | null) {
 
 export default function ParkingLot(): JSX.Element {
   const [selected, setSelected] = useState<Slot | null>(null);
+  const [slots, setSlots] = useState(mockSlots);
 
-  const orderedSlots = [...mockSlots].sort((a, b) => a.slotId.localeCompare(b.slotId));
+  // 🧠 Fetch live sensor data every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const data = await fetchLiveSensor();
+      if (data && data.pico_1) {
+        setSlots((prev) =>
+          prev.map((s) =>
+            s.slotId === "A1"
+              ? {
+                  ...s,
+                  status: data.pico_1.state ? "vacant" : "parked",
+                  updatedAt: data.pico_1.timestamp,
+                  distance: data.pico_1.distance,
+                }
+              : s
+          )
+        );
+      }
+    }, 3000);
 
-  // Grid config
+    return () => clearInterval(interval);
+  }, []);
+
+  const orderedSlots = [...slots].sort((a, b) => a.slotId.localeCompare(b.slotId));
+
+  // grid setup
   const columns = 4;
   const screenW = Dimensions.get("window").width;
   const gridPadding = 24;
@@ -104,41 +129,12 @@ export default function ParkingLot(): JSX.Element {
                 <Text style={styles.sectionRow}>
                   <Text style={styles.bold}>Last updated:</Text> {formatTs(selected?.updatedAt)}
                 </Text>
+                {selected?.distance && (
+                  <Text style={styles.sectionRow}>
+                    <Text style={styles.bold}>Distance:</Text> {selected.distance.toFixed(1)} cm
+                  </Text>
+                )}
               </View>
-
-              {(selected?.status === "parked" || selected?.status === "reserved") && selected.owner ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>
-                    {selected.status === "parked" ? "Owner / Vehicle" : "Reservation Details"}
-                  </Text>
-                  <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Name:</Text> {selected.owner.fullName}
-                  </Text>
-                  <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Email:</Text> {selected.owner.email}
-                  </Text>
-                  <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Phone:</Text> {selected.owner.phone ?? "—"}
-                  </Text>
-                  {selected.owner.parkedAt || selected.owner.reservedAt ? (
-                    <Text style={styles.sectionRow}>
-                      <Text style={styles.bold}>
-                        {selected.status === "parked" ? "Parked at:" : "Reserved at:"}
-                      </Text>{" "}
-                      {formatTs(selected.owner.parkedAt || selected.owner.reservedAt)}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Car number:</Text>{" "}
-                    {selected.owner.carNumber || "—"}
-                  </Text>
-                  {selected.owner.notes ? (
-                    <Text style={styles.sectionRow}>
-                      <Text style={styles.bold}>Notes:</Text> {selected.owner.notes}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
             </ScrollView>
           </View>
         </View>
@@ -161,12 +157,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
   },
-
-  gridContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  gridContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
   tile: {
     borderRadius: 12,
     alignItems: "center",
@@ -180,20 +171,14 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 5 },
     }),
-    transform: [{ scale: 1 }],
   },
-  tileLabel: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 20,
-  },
+  tileLabel: { color: "#fff", fontWeight: "800", fontSize: 20 },
   tileStatus: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 12,
     marginTop: 4,
     textTransform: "uppercase",
   },
-
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -221,9 +206,13 @@ const styles = StyleSheet.create({
   },
   closeBtn: { padding: 6 },
   closeTxt: { color: theme.colors.primary, fontWeight: "700" },
-
   section: { marginTop: 12, borderTopWidth: 0.5, borderTopColor: "#eee", paddingTop: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: theme.colors.textPrimary, marginBottom: 6 },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.textPrimary,
+    marginBottom: 6,
+  },
   sectionRow: { color: theme.colors.textSecondary, marginBottom: 6, fontSize: 13 },
   bold: { fontWeight: "700", color: theme.colors.textPrimary },
 });
