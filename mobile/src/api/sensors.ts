@@ -1,5 +1,5 @@
 // src/api/sensors.ts
-export const SENSOR_API_URL = "http://<pc/svr_ip>:5000/devices"; // your Flask server IP
+export const SENSOR_API_URL = "http://<pc ip>:5000/devices"; // your Flask server IP
 
 export async function fetchLiveSensor() {
   try {

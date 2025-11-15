@@ -34,24 +34,35 @@ export default function ParkingLot(): JSX.Element {
   const [selected, setSelected] = useState<Slot | null>(null);
   const [slots, setSlots] = useState(mockSlots);
 
-  // 🧠 Fetch live sensor data every 3 seconds
+  // 🧠 Fetch all devices every 3 seconds — dynamic multi-sensor support
   useEffect(() => {
     const interval = setInterval(async () => {
       const data = await fetchLiveSensor();
-      if (data && data.pico_1) {
-        setSlots((prev) =>
-          prev.map((s) =>
-            s.slotId === "A1"
-              ? {
-                  ...s,
-                  status: data.pico_1.state ? "vacant" : "parked",
-                  updatedAt: data.pico_1.timestamp,
-                  distance: data.pico_1.distance,
-                }
-              : s
-          )
-        );
-      }
+      if (!data) return;
+
+      setSlots((prev) =>
+        prev.map((slot) => {
+          const deviceData = data[slot.slotId]; // sensor.id must match slotId (A1, A2, B4…)
+
+          if (!deviceData) {
+            return slot; // no sensor for this slot
+          }
+
+          const { state, distance, timestamp } = deviceData;
+
+          const newStatus = state ? "vacant" : "parked";
+
+          // Do NOT override reserved slots unless YOU want to
+          // const finalStatus = slot.status === "reserved" ? "reserved" : newStatus;
+
+          return {
+            ...slot,
+            status: newStatus,
+            updatedAt: timestamp,
+            distance, // extra field, UI will show if present
+          };
+        })
+      );
     }, 3000);
 
     return () => clearInterval(interval);
@@ -64,7 +75,9 @@ export default function ParkingLot(): JSX.Element {
   const screenW = Dimensions.get("window").width;
   const gridPadding = 24;
   const gap = 14;
-  const tileSize = Math.floor((screenW - gridPadding * 2 - gap * (columns - 1)) / columns);
+  const tileSize = Math.floor(
+    (screenW - gridPadding * 2 - gap * (columns - 1)) / columns
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -127,11 +140,13 @@ export default function ParkingLot(): JSX.Element {
                   <Text style={styles.bold}>Area:</Text> {selected?.area ?? "—"}
                 </Text>
                 <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Last updated:</Text> {formatTs(selected?.updatedAt)}
+                  <Text style={styles.bold}>Last updated:</Text>{" "}
+                  {formatTs(selected?.updatedAt)}
                 </Text>
-                {selected?.distance && (
+                {"distance" in (selected || {}) && selected?.distance != null && (
                   <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Distance:</Text> {selected.distance.toFixed(1)} cm
+                    <Text style={styles.bold}>Distance:</Text>{" "}
+                    {selected.distance.toFixed(1)} cm
                   </Text>
                 )}
               </View>

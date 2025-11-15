@@ -1,16 +1,14 @@
-//I uploaded this code to rpi pico w using arduino ide
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 
 // ==== CONFIG ====
-const char* ssid = "WIFI_NAME/SSID";
-const char* password = "WIFI_PASS";
-const char* serverUrl = "http://<PC/SERVER_IP>:5000/data"; // your PC's IP
+const char* ssid = "<wifi name>";
+const char* password = "<wifi pass>";
+const char* serverUrl = "http://<pc ip>:5000/data"; // your PC's IP
 
 #define TRIG_PIN 3
 #define ECHO_PIN 2
-#define DEVICE_ID "pico_1"
+#define DEVICE_ID "A1"
 
 // Threshold logic
 const float THRESHOLD = 100.0;  // cm
@@ -23,8 +21,8 @@ unsigned long normalDelay = 5000;  // ms
 unsigned long fastDelay = 1000;    // ms
 unsigned long currentDelay = normalDelay;
 int stableCounter = 0;
+int m=0;    // to vary simulated data
 const int STABLE_LIMIT = 5;        // after 5 stable readings, slow down again
-// =================
 
 void setup() {
   Serial.begin(9600);
@@ -42,14 +40,27 @@ void setup() {
 }
 
 float getDistance() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
+  // digitalWrite(TRIG_PIN, LOW);
+  // delayMicroseconds(2);
+  // digitalWrite(TRIG_PIN, HIGH);
+  // delayMicroseconds(10);
+  // digitalWrite(TRIG_PIN, LOW);
 
-  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
-  float distance = duration * 0.0343 / 2; // cm
+  // long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  // float distance = duration * 0.0343 / 2; // cm
+
+  //simulation
+  long duration=0;
+  if(m<0)
+  {
+    duration = random(400, 800);
+  }
+  else
+  {
+    duration = random(1000, 1800);
+  }
+  float distance = duration/10.0;
+
   return distance;
 }
 
@@ -100,6 +111,11 @@ void loop() {
     }
     http.end();
   }
+
+  //varying simulated data
+  m=m-1;
+  if(m<=-20)
+    m=20;
 
   delay(currentDelay);
 }

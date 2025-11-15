@@ -21,7 +21,7 @@ export type Slot = {
 };
 
 export type Sensor = {
-  sensorId: string;             // "S-A1" or unique id
+  sensorId: string;             // "A1" or unique id
   slotId: string;               // link to slot
   type: "ultrasonic";
   distanceCm: number | null;    // last measured distance in cm (null if no reading)
@@ -186,7 +186,7 @@ export const mockSensors: Sensor[] = mockSlots.map((slot, idx) => {
   }));
 
   return {
-    sensorId: `S-${slot.slotId}`,
+    sensorId: `${slot.slotId}`,
     slotId: slot.slotId,
     type: "ultrasonic",
     distanceCm: connected ? Math.round(history[history.length - 1].distanceCm) : null,
@@ -267,7 +267,7 @@ export function generateMockData(seed?: number) {
       distanceCm: Math.max(2, Math.round(baseDistance + (rand() * 6 - 3))),
     }));
     return {
-      sensorId: `S-${s.slotId}`,
+      sensorId: `${s.slotId}`,
       slotId: s.slotId,
       type: "ultrasonic",
       distanceCm: connected ? history[history.length - 1].distanceCm : null,
