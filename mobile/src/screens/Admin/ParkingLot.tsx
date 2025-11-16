@@ -32,7 +32,15 @@ function formatTs(iso?: string | null) {
 
 export default function ParkingLot(): JSX.Element {
   const [selected, setSelected] = useState<Slot | null>(null);
-  const [slots, setSlots] = useState(mockSlots);
+  const [slots, setSlots] = useState<Slot[]>(mockSlots);
+
+  // compute simple counts for header metrics (local, derived)
+  const counts = {
+    total: slots.length,
+    vacant: slots.filter((s) => s.status === "vacant").length,
+    parked: slots.filter((s) => s.status === "parked").length,
+    reserved: slots.filter((s) => s.status === "reserved").length,
+  };
 
   // 🧠 Fetch all devices every 3 seconds — dynamic multi-sensor support
   useEffect(() => {
@@ -42,23 +50,18 @@ export default function ParkingLot(): JSX.Element {
 
       setSlots((prev) =>
         prev.map((slot) => {
-          const deviceData = data[slot.slotId]; // sensor.id must match slotId (A1, A2, B4…)
+          const deviceData = data[slot.slotId];
 
-          if (!deviceData) {
-            return slot; // no sensor for this slot
-          }
+          if (!deviceData) return slot;
 
           const { state, distance, timestamp } = deviceData;
           const newStatus = state ? "vacant" : "parked";
-
-          // Do NOT override reserved slots unless YOU want to
-          // const finalStatus = slot.status === "reserved" ? "reserved" : newStatus;
 
           return {
             ...slot,
             status: newStatus,
             updatedAt: timestamp,
-            distance, // extra field, UI will show if present
+            distance,
           };
         })
       );
@@ -67,7 +70,9 @@ export default function ParkingLot(): JSX.Element {
     return () => clearInterval(interval);
   }, []);
 
-  const orderedSlots = [...slots].sort((a, b) => a.slotId.localeCompare(b.slotId));
+  const orderedSlots = [...slots].sort((a, b) =>
+    a.slotId.localeCompare(b.slotId)
+  );
 
   // grid setup
   const columns = 4;
@@ -80,8 +85,31 @@ export default function ParkingLot(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Parking Lot</Text>
-      <Text style={styles.subheader}>Tap a slot to view details</Text>
+
+      {/* Enhanced header with metrics */}
+      <View style={styles.headerBlock}>
+        <View>
+          <Text style={styles.header}>Parking Lot</Text>
+        </View>
+
+        <View style={styles.headerMetrics}>
+          <View style={styles.metric}>
+            <Text style={styles.metricValue}>{counts.total}</Text>
+            <Text style={styles.metricLabel}>Total</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricValue}>{counts.vacant}</Text>
+            <Text style={styles.metricLabel}>Available</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricValue}>{counts.parked}</Text>
+            <Text style={styles.metricLabel}>Occupied</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Divider */}
+      <View style={styles.headerDivider} />
 
       <View style={[styles.gridContainer, { paddingHorizontal: gridPadding }]}>
         <View
@@ -110,24 +138,27 @@ export default function ParkingLot(): JSX.Element {
                 ]}
                 activeOpacity={0.85}
                 onPress={() => setSelected(slot)}
-                accessibilityRole="button"
                 accessibilityLabel={`${slot.slotId} ${slot.status}`}
               >
                 <Text style={styles.tileLabel}>{slot.slotId}</Text>
 
-                {/* status capsule / pill */}
                 <View
                   style={[
-                    styles.statusPill,
-                    slot.status === "parked" ? styles.statusPillDark : styles.statusPillLight,
+                    styles.statusPillCentered,
+                    slot.status === "parked"
+                      ? styles.statusPillDark
+                      : styles.statusPillLight,
                   ]}
                 >
-                  <Text style={styles.statusPillText}>{slot.status.toUpperCase()}</Text>
+                  <Text style={styles.statusPillText}>
+                    {slot.status.toUpperCase()}
+                  </Text>
                 </View>
 
-                {/* optional small distance info */}
                 {"distance" in slot && slot.distance != null && (
-                  <Text style={styles.tileSmall}>{slot.distance.toFixed(0)} cm</Text>
+                  <Text style={styles.tileSmall}>
+                    {slot.distance.toFixed(0)} cm
+                  </Text>
                 )}
               </TouchableOpacity>
             );
@@ -135,7 +166,7 @@ export default function ParkingLot(): JSX.Element {
         </View>
       </View>
 
-      {/* Modal for details */}
+      {/* Modal */}
       <Modal visible={!!selected} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -152,7 +183,8 @@ export default function ParkingLot(): JSX.Element {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Slot Info</Text>
                 <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Area:</Text> {selected?.area ?? "—"}
+                  <Text style={styles.bold}>Area:</Text>{" "}
+                  {selected?.area ?? "—"}
                 </Text>
                 <Text style={styles.sectionRow}>
                   <Text style={styles.bold}>Last updated:</Text>{" "}
@@ -160,7 +192,8 @@ export default function ParkingLot(): JSX.Element {
                 </Text>
                 {"distance" in (selected || {}) && selected?.distance != null && (
                   <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Distance:</Text> {selected.distance.toFixed(1)} cm
+                    <Text style={styles.bold}>Distance:</Text>{" "}
+                    {selected.distance.toFixed(1)} cm
                   </Text>
                 )}
               </View>
@@ -168,25 +201,43 @@ export default function ParkingLot(): JSX.Element {
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+
+  headerBlock: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  headerDivider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+
   header: {
     fontSize: 22,
     fontWeight: "800",
     color: theme.colors.textPrimary,
-    marginTop: 16,
-    textAlign: "center",
   },
-  subheader: {
-    color: theme.colors.textSecondary,
-    marginBottom: 20,
-    textAlign: "center",
-  },
+
+  headerMetrics: { flexDirection: "row", gap: 12 },
+  metric: { alignItems: "center", paddingHorizontal: 8 },
+  metricValue: { fontSize: 16, fontWeight: "800", color: theme.colors.textPrimary },
+  metricLabel: { fontSize: 11, color: theme.colors.textSecondary },
+
   gridContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+
   tile: {
     borderRadius: 12,
     alignItems: "center",
@@ -201,7 +252,9 @@ const styles = StyleSheet.create({
       android: { elevation: 3 },
     }),
   },
+
   tileLabel: { color: "#fff", fontWeight: "800", fontSize: 20 },
+
   tileSmall: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 10,
@@ -209,16 +262,18 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
 
-  // status pill (top-right)
-  statusPill: {
-    position: "absolute",
-    top: 8,
-    right: 8,
+  statusPillCentered: {
+    marginTop: 8,
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     borderRadius: 12,
+    alignSelf: "center",
   },
-  statusPillText: { fontSize: 10, color: "#fff", fontWeight: "700" },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#fff",
+  },
   statusPillDark: { backgroundColor: "rgba(0,0,0,0.22)" },
   statusPillLight: { backgroundColor: "rgba(255,255,255,0.12)" },
 
@@ -249,7 +304,13 @@ const styles = StyleSheet.create({
   },
   closeBtn: { padding: 6 },
   closeTxt: { color: theme.colors.primary, fontWeight: "700" },
-  section: { marginTop: 12, borderTopWidth: 0.5, borderTopColor: "#eee", paddingTop: 10 },
+
+  section: {
+    marginTop: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: "#eee",
+    paddingTop: 10,
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: "700",
