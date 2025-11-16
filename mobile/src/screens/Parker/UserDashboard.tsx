@@ -1,5 +1,5 @@
 // src/screens/Parker/UserDashboard.tsx
-// only layout tweaks from previous version
+// only layout tweaks from previous version (styling aligned with Admin ParkingLot)
 import React, { useState } from "react";
 import {
   View,
@@ -30,17 +30,13 @@ export default function UserDashboard(): JSX.Element {
   const [selected, setSelected] = useState<Slot | null>(null);
   const [slots, setSlots] = useState([...mockSlots]);
 
-  const myReservation = slots.find(
-    (s) => s.status === "reserved" && s.slotId === "A2"
-  );
+  const myReservation = slots.find((s) => s.status === "reserved" && s.slotId === "A2");
 
   const columns = 4;
   const screenW = Dimensions.get("window").width;
   const gridPadding = 24;
   const gap = 14;
-  const tileSize = Math.floor(
-    (screenW - gridPadding * 2 - gap * (columns - 1)) / columns
-  );
+  const tileSize = Math.floor((screenW - gridPadding * 2 - gap * (columns - 1)) / columns);
 
   const handleSlotPress = (slot: Slot) => {
     if (slot.status === "vacant") {
@@ -54,20 +50,19 @@ export default function UserDashboard(): JSX.Element {
     if (!myReservation) return;
     setSlots((prev) =>
       prev.map((s) =>
-        s.slotId === myReservation.slotId
-          ? { ...s, status: "vacant", owner: undefined }
-          : s
+        s.slotId === myReservation.slotId ? { ...s, status: "vacant", owner: undefined } : s
       )
     );
   };
 
-  const orderedSlots = [...slots].sort((a, b) =>
-    a.slotId.localeCompare(b.slotId)
-  );
+  const orderedSlots = [...slots].sort((a, b) => a.slotId.localeCompare(b.slotId));
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Available Slots</Text>
+      {/* Centered, minimal header */}
+      <View style={styles.headerSimple}>
+        <Text style={styles.header}>Available Slots</Text>
+      </View>
 
       {/* Greeting Section */}
       <View style={styles.greetingBox}>
@@ -83,9 +78,7 @@ export default function UserDashboard(): JSX.Element {
           <View style={styles.resRow}>
             <View>
               <Text style={styles.resTitle}>My Reservation</Text>
-              <Text style={styles.resSubtitle}>
-                Slot {myReservation.slotId}
-              </Text>
+              <Text style={styles.resSubtitle}>Slot {myReservation.slotId}</Text>
             </View>
             <Pressable style={styles.cancelBtn} onPress={cancelReservation}>
               <Text style={styles.cancelTxt}>Cancel</Text>
@@ -95,7 +88,7 @@ export default function UserDashboard(): JSX.Element {
       )}
 
       {/* Grid placed centrally */}
-      <View style={[styles.gridWrapper]}>
+      <View style={[styles.gridWrapper, { paddingHorizontal: gridPadding }]}>
         <View
           style={{
             flexDirection: "row",
@@ -124,9 +117,21 @@ export default function UserDashboard(): JSX.Element {
                 onPress={() => handleSlotPress(slot)}
               >
                 <Text style={styles.tileLabel}>{slot.slotId}</Text>
-                <Text style={styles.tileStatus}>
-                  {slot.status.toUpperCase()}
-                </Text>
+
+                {/* centered capsule inside the tile below the label */}
+                <View
+                  style={[
+                    styles.statusPillCentered,
+                    slot.status === "parked" ? styles.statusPillDark : styles.statusPillLight,
+                  ]}
+                >
+                  <Text style={styles.statusPillText}>{slot.status.toUpperCase()}</Text>
+                </View>
+
+                {/* optional small distance info (kept if present) */}
+                {"distance" in slot && slot.distance != null && (
+                  <Text style={styles.tileSmall}>{slot.distance.toFixed(0)} cm</Text>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -142,10 +147,7 @@ export default function UserDashboard(): JSX.Element {
                 <Text style={styles.modalTitle}>
                   {selected?.slotId} — {selected?.status.toUpperCase()}
                 </Text>
-                <Pressable
-                  onPress={() => setSelected(null)}
-                  style={styles.closeBtn}
-                >
+                <Pressable onPress={() => setSelected(null)} style={styles.closeBtn}>
                   <Text style={styles.closeTxt}>Close</Text>
                 </Pressable>
               </View>
@@ -153,12 +155,10 @@ export default function UserDashboard(): JSX.Element {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Slot Info</Text>
                 <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Area:</Text>{" "}
-                  {selected?.area ?? "—"}
+                  <Text style={styles.bold}>Area:</Text> {selected?.area ?? "—"}
                 </Text>
                 <Text style={styles.sectionRow}>
-                  <Text style={styles.bold}>Status:</Text>{" "}
-                  {selected?.status.toUpperCase()}
+                  <Text style={styles.bold}>Status:</Text> {selected?.status.toUpperCase()}
                 </Text>
               </View>
             </ScrollView>
@@ -172,28 +172,35 @@ export default function UserDashboard(): JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
 
+  headerSimple: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    alignItems: "center",
+  },
+
   header: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: theme.colors.textPrimary,
-    marginTop: 16,
     textAlign: "center",
   },
 
   greetingBox: {
-    marginTop: 16,
+    marginTop: 8,
     paddingHorizontal: 20,
     marginBottom: 10,
+    alignItems: "flex-start",
   },
   greeting: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: theme.colors.textPrimary,
   },
   reservedText: {
-    fontSize: 16,
+    fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
   },
   highlight: {
     fontWeight: "800",
@@ -206,7 +213,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginHorizontal: 16,
     marginTop: 10,
-    marginBottom: 30,
+    marginBottom: 20,
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 5,
@@ -230,9 +237,9 @@ const styles = StyleSheet.create({
 
   gridWrapper: {
     flex: 1,
-    justifyContent: "center", // centers vertically
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 40, // brings grid down to middle visually
+    marginBottom: 40,
   },
   tile: {
     borderRadius: 12,
@@ -242,19 +249,37 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
       },
-      android: { elevation: 5 },
+      android: { elevation: 3 },
     }),
   },
+
   tileLabel: { color: "#fff", fontWeight: "800", fontSize: 20 },
-  tileStatus: {
+
+  tileSmall: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 12,
-    marginTop: 4,
-    textTransform: "uppercase",
+    fontSize: 10,
+    marginTop: 6,
+    opacity: 0.95,
   },
+
+  // centered status pill (capsule inside tile)
+  statusPillCentered: {
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    alignSelf: "center",
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  statusPillDark: { backgroundColor: "rgba(0,0,0,0.22)" },
+  statusPillLight: { backgroundColor: "rgba(255,255,255,0.12)" },
 
   modalBackdrop: {
     flex: 1,
@@ -283,6 +308,7 @@ const styles = StyleSheet.create({
   },
   closeBtn: { padding: 6 },
   closeTxt: { color: theme.colors.primary, fontWeight: "700" },
+
   section: {
     marginTop: 12,
     borderTopWidth: 0.5,
