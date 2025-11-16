@@ -7,6 +7,9 @@ import {
   ScrollView,
   Animated,
   Easing,
+  Platform,
+  Dimensions,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../styles/theme";
@@ -16,8 +19,10 @@ import useSlots from "../../hooks/useSlots";
 
 type Slot = { id: string; status: "free" | "parked" | "reserved" | string };
 
+// animation duration kept short for smooth feedback
 const ANIM_DURATION = 800;
-const REFRESH_MS = 5000;
+// reloads after 30s
+const REFRESH_MS = 30000;
 
 export default function AdminDashboard(): JSX.Element {
   const navigation = useNavigation<any>();
@@ -48,21 +53,76 @@ export default function AdminDashboard(): JSX.Element {
   const animReserved = useRef(new Animated.Value(0)).current;
   const animParked = useRef(new Animated.Value(0)).current;
   const [pieValues, setPieValues] = useState({ vacant: 0, reserved: 0, parked: 0 });
+
+  // guards to prevent re-entrant animations causing infinite loops
+  const isAnimatingPieRef = useRef(false);
+  const isAnimatingLineRef = useRef(false);
+
+  // throttle pie updates so it animates at most once per REFRESH_MS
+  const lastPieUpdateRef = useRef<number | null>(null);
+
   useEffect(() => {
+    const now = Date.now();
+
+    // allow the first animation immediately
+    if (lastPieUpdateRef.current === null) {
+      lastPieUpdateRef.current = now;
+    } else {
+      // throttle: skip if last update was within REFRESH_MS
+      if (now - (lastPieUpdateRef.current ?? 0) < REFRESH_MS) {
+        return;
+      }
+      lastPieUpdateRef.current = now;
+    }
+
+    // If counts haven't changed, skip animation
+    if (
+      pieValues.vacant === counts.vacant &&
+      pieValues.reserved === counts.reserved &&
+      pieValues.parked === counts.parked
+    ) {
+      return;
+    }
+
+    // prevent overlapping pie animations
+    if (isAnimatingPieRef.current) return;
+    isAnimatingPieRef.current = true;
+
     const animate = (anim: Animated.Value, toValue: number, setter: (v: number) => void) => {
-      Animated.timing(anim, {
-        toValue,
-        duration: ANIM_DURATION,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-      const id = anim.addListener(({ value }) => setter(Math.round(value)));
-      setTimeout(() => anim.removeListener(id), ANIM_DURATION + 50);
+      try {
+        Animated.timing(anim, {
+          toValue,
+          duration: ANIM_DURATION,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: false,
+        }).start();
+        const id = anim.addListener(({ value }) => setter(Math.round(value)));
+        setTimeout(() => {
+          try {
+            anim.removeListener(id);
+          } catch (e) {
+            // ignore if already removed
+          }
+        }, ANIM_DURATION + 50);
+      } catch (e) {
+        // defensive: if Animated.timing throws on some RN versions, swallow here
+      }
     };
+
     animate(animVacant, counts.vacant, (v) => setPieValues((p) => ({ ...p, vacant: v })));
     animate(animReserved, counts.reserved, (v) => setPieValues((p) => ({ ...p, reserved: v })));
     animate(animParked, counts.parked, (v) => setPieValues((p) => ({ ...p, parked: v })));
-  }, [counts.vacant, counts.reserved, counts.parked]);
+
+    const finishId = setTimeout(() => {
+      isAnimatingPieRef.current = false;
+    }, ANIM_DURATION + 60);
+
+    return () => {
+      clearTimeout(finishId);
+      isAnimatingPieRef.current = false;
+    };
+    // keep same deps: only when counts change
+  }, [counts.vacant, counts.reserved, counts.parked]); // throttled by lastPieUpdateRef inside
 
   const pieData = [
     { value: pieValues.vacant, color: "#22C55E", text: "Vacant" },
@@ -90,6 +150,14 @@ export default function AdminDashboard(): JSX.Element {
 
   // helper: smoothly interpolate from prevLineRef -> targetLineRef
   const animateLineInterpolation = (duration = ANIM_DURATION) => {
+    // guard: prevent re-entrant animations
+    if (isAnimatingLineRef.current) return;
+
+    // guard: if already at target, skip
+    const same = targetLineRef.current.every((v, i) => v === (prevLineRef.current[i] ?? v));
+    if (same) return;
+
+    isAnimatingLineRef.current = true;
     animProgress.setValue(0);
     const id = animProgress.addListener(({ value: t }) => {
       const next = targetLineRef.current.map((tv, idx) => {
@@ -97,42 +165,56 @@ export default function AdminDashboard(): JSX.Element {
         const interp = pv + (tv - pv) * t;
         return Math.round(interp);
       });
-      // update displayLine with labels preserved
-      setDisplayLine((old) => old.map((d, i) => ({ ...d, value: next[i] })));
+      // Only update state if values differ to avoid unnecessary renders
+      setDisplayLine((old) => {
+        const changed = next.some((nv, i) => nv !== (old[i]?.value ?? null));
+        return changed ? old.map((d, i) => ({ ...d, value: next[i] })) : old;
+      });
     });
-    Animated.timing(animProgress, {
-      toValue: 1,
-      duration,
-      easing: Easing.inOut(Easing.quad),
-      useNativeDriver: false,
-    }).start(() => {
-      animProgress.removeListener(id);
-      // finalize prevLineRef
+    try {
+      Animated.timing(animProgress, {
+        toValue: 1,
+        duration,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: false,
+      }).start(() => {
+        try {
+          animProgress.removeListener(id);
+        } catch (e) {
+          // ignore
+        }
+        prevLineRef.current = targetLineRef.current.slice();
+        isAnimatingLineRef.current = false;
+      });
+    } catch (e) {
+      // defensive fallback: if timing fails, finalize immediately
+      try {
+        animProgress.removeListener(id);
+      } catch {}
       prevLineRef.current = targetLineRef.current.slice();
-    });
+      isAnimatingLineRef.current = false;
+    }
   };
 
   // Kick off periodic refresh that updates targetLineRef and animates
   useEffect(() => {
+    // initial sync to prev values (safe one-time copy)
+    prevLineRef.current = displayLine.map((d) => d.value);
+
     const tick = () => {
       // Generate a nudge based on existing values to keep trend realistic (no wild jumps)
       const newTargets = prevLineRef.current.map((v) => {
-        const jitter = Math.round((Math.random() * 16 - 8)); // -8..+8
+        const jitter = Math.round(Math.random() * 16 - 8); // -8..+8
         return Math.max(0, Math.min(100, v + jitter));
       });
       targetLineRef.current = newTargets;
       animateLineInterpolation();
     };
 
-    // initial sync to prev values (in case prev was default)
-    prevLineRef.current = displayLine.map((d) => d.value);
-    // start periodic
     const id = setInterval(tick, REFRESH_MS);
     return () => clearInterval(id);
+    // empty deps: run once
   }, []); // run once
-
-  // also allow reacting to explicit external updates (if you later set targetLineRef externally)
-  // example: whenever line source changes you can set targetLineRef.current and call animateLineInterpolation()
 
   // --- rendering helpers ---
   const centerLabelComponent = () => (
@@ -143,54 +225,147 @@ export default function AdminDashboard(): JSX.Element {
     </View>
   );
 
+  // small metric chips to show under the action bar (GitHub-like neutral chips)
+  const MetricChip = ({ label, value }: { label: string; value: string | number }) => (
+    <View style={styles.chip}>
+      <Text style={styles.chipValue}>{value}</Text>
+      <Text style={styles.chipLabel}>{label}</Text>
+    </View>
+  );
+
+  // compute responsive chart size to prevent overflow
+  const screenW = Dimensions.get("window").width;
+  const pieDiameter = Math.min(160, Math.floor((screenW - 120) / 1)); // keeps room for legend
+
+  // LOGOUT handler (confirmation + fallback)
+  const handleLogout = () => {
+    Alert.alert("Log out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            // If your app exposes a global sign-out helper, call it
+            if (typeof (global as any).authSignOut === "function") {
+              await (global as any).authSignOut();
+              return;
+            }
+          } catch (e) {
+            // fall through to navigation reset
+          }
+          // Fallback: reset navigation to Welcome (assumes you have a Welcome screen)
+          try {
+            navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
+          } catch (e) {
+            // last-ditch: navigate to Welcome
+            navigation.navigate("Welcome");
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      {/* Header — minimal, left-aligned title with logout on the far right */}
+      <View style={styles.headerRow}>
         <Text style={styles.header}>Admin Dashboard</Text>
-        <Text style={styles.subheader}>
-          {loading ? "Loading live slot data..." : `Monitoring ${counts.total} slots`}
-        </Text>
 
-        {/* PIE */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          
+
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [styles.logoutBtn, pressed && styles.logoutPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Text style={styles.logoutText}>Log out</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Action Bar — both buttons same filled primary color */}
+        <View style={styles.actionContainer}>
+          <Pressable
+            onPress={() => navigation.navigate("LotMap")}
+            style={({ pressed }) => [styles.sameBtn, pressed && styles.primaryPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Open Parking Lot"
+          >
+            <Text style={styles.sameText}>
+              Parking Lot <Text style={styles.sameSub}>• {counts.vacant} available</Text>
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => navigation.navigate("SensorHealth")}
+            style={({ pressed }) => [styles.sameBtn, { marginTop: 10 }, pressed && styles.primaryPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Open Sensor Health"
+          >
+            <Text style={styles.sameText}>Sensor Health</Text>
+          </Pressable>
+        </View>
+
+        {/* Metric chips */}
+        <View style={styles.metricsRow}>
+          <MetricChip label="Total slots" value={counts.total} />
+          <MetricChip label="Parked" value={counts.parked} />
+          <MetricChip label="Reserved" value={counts.reserved} />
+          <MetricChip label="Last update" value="Now" />
+        </View>
+
+        {/* Occupancy Card (left/top) */}
         <View style={styles.card}>
-          <View style={{ alignItems: "center" }}>
-            <Text style={styles.cardTitleCentered}>Occupancy Overview</Text>
-            <View style={styles.pieRow}>
-              <View style={styles.pieWrapper}>
-                <PieChart
-                  data={pieData}
-                  donut
-                  showText={false}
-                  radius={100}
-                  innerRadius={60}
-                  showValuesAsLabels={false}
-                  centerLabelComponent={centerLabelComponent}
-                  animationDuration={ANIM_DURATION}
-                />
-              </View>
-              <View style={styles.legendContainer}>
-                {pieData.map((d) => (
-                  <View key={d.text} style={styles.legendRowItem}>
-                    <View style={[styles.legendDot, { backgroundColor: d.color }]} />
-                    <View>
-                      <Text style={styles.legendLabelTitle}>{d.text}</Text>
-                      <Text style={styles.legendLabelSub}>
-                        {pieValues[d.text.toLowerCase() as "vacant" | "reserved" | "parked"]} (
-                        {percent(pieValues[d.text.toLowerCase() as "vacant" | "reserved" | "parked"])}
-                        %)
-                      </Text>
-                    </View>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Occupancy Overview</Text>
+          </View>
+
+          <View style={styles.pieRow}>
+            <View style={[styles.pieWrapper, { width: pieDiameter, height: pieDiameter }]}>
+              <PieChart
+                data={pieData}
+                donut
+                showText={false}
+                radius={Math.floor(pieDiameter / 2)}
+                innerRadius={Math.floor(pieDiameter / 2.8)}
+                showValuesAsLabels={false}
+                centerLabelComponent={centerLabelComponent}
+                animationDuration={ANIM_DURATION}
+              />
+            </View>
+
+            <View style={styles.legendContainer}>
+              {pieData.map((d) => (
+                <View key={d.text} style={styles.legendRowItem}>
+                  <View style={[styles.legendDot, { backgroundColor: d.color }]} />
+                  <View>
+                    <Text style={styles.legendLabelTitle}>{d.text}</Text>
+                    <Text style={styles.legendLabelSub}>
+                      {pieValues[d.text.toLowerCase() as "vacant" | "reserved" | "parked"]} (
+                      {percent(
+                        pieValues[d.text.toLowerCase() as "vacant" | "reserved" | "parked"]
+                      )}
+                      %)
+                    </Text>
                   </View>
-                ))}
-              </View>
+                </View>
+              ))}
             </View>
           </View>
         </View>
 
-        {/* LINE CHART (fixed utilization trend) */}
+        {/* Trend Card (wide) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Utilization Trend</Text>
-          <View style={{ alignItems: "center" }}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Utilization Trend</Text>
+            <Text style={styles.cardSubtitle}>Last 24 hours</Text>
+          </View>
+
+          <View style={{ alignItems: "flex-start", paddingTop: 8 }}>
             <LineChart
               data={displayLine}
               hideDataPoints={false}
@@ -204,27 +379,13 @@ export default function AdminDashboard(): JSX.Element {
               yAxisLabelTexts={["0%", "25%", "50%", "75%", "100%"]}
               yAxisLabelWidth={35}
               hideRules
-              animationDuration={ANIM_DURATION} // many versions accept this; safety: we animate values ourselves
+              animationDuration={ANIM_DURATION}
             />
           </View>
         </View>
 
-        {/* ACTIONS */}
-        <View style={styles.btnRow}>
-          <Pressable
-            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate("LotMap")}
-          >
-            <Text style={styles.navText}>Parking Lot</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate("SensorHealth")}
-          >
-            <Text style={styles.navText}>Sensor Health</Text>
-          </Pressable>
-        </View>
+        {/* Footer spacing */}
+        <View style={{ height: 28 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -232,54 +393,150 @@ export default function AdminDashboard(): JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  scroll: { paddingHorizontal: 16, paddingBottom: 40 },
+  scroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    paddingTop: 12,
+  },
+
+  // Header row: minimal, left aligned text with tiny status on right
+  headerRow: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E6E9EE",
+    backgroundColor: theme.colors.background,
+  },
   header: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: theme.colors.textPrimary,
-    marginTop: 16,
   },
-  subheader: { color: theme.colors.textSecondary, marginBottom: 16 },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+  },
+  statusText: {
+    color: "#334155",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // logout
+  logoutBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E6EDF8",
+    backgroundColor: "#fff",
+  },
+  logoutPressed: { opacity: 0.8 },
+  logoutText: {
+    fontSize: 13,
+    color: "#0F172A",
+    fontWeight: "600",
+  },
+
+  // ACTIONS: both buttons same filled primary color
+  actionContainer: {
+    marginTop: 18,
+    marginBottom: 12,
+    width: "100%",
+  },
+  sameBtn: {
+    width: "100%",
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "flex-start",
+    paddingHorizontal: 18,
+    elevation: Platform.OS === "android" ? 2 : 0,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  primaryPressed: { opacity: 0.9 },
+  sameText: {
+    color: theme.colors.onPrimary,
+    fontWeight: "800",
+    fontSize: 16,
+  },
+  sameSub: {
+    color: theme.colors.onPrimary,
+    fontWeight: "600",
+    fontSize: 13,
+    opacity: 0.95,
+  },
+
+  // Metric chips row
+  metricsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+    marginTop: 6,
+  },
+  chip: {
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 92,
+  },
+  chipLabel: { fontSize: 11, color: "#64748B" },
+  chipValue: { fontSize: 14, fontWeight: "700", color: theme.colors.textPrimary },
+
+  // Card base (GitHub-like: quiet, left titles, soft spacing)
   card: {
     backgroundColor: theme.colors.surface ?? "#fff",
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    overflow: "hidden",
   },
+  cardHeader: { marginBottom: 8 },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: theme.colors.textPrimary,
-    marginBottom: 12,
+    textAlign: "left",
   },
-  cardTitleCentered: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: theme.colors.textPrimary,
-    marginBottom: 8,
-    textAlign: "center",
+  cardSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
   },
+
+  // PIE layout (responsive & clipped)
   pieRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     gap: 12,
     flexWrap: "wrap",
   },
   pieWrapper: {
     alignItems: "center",
     justifyContent: "center",
-    width: 220,
-    height: 220,
+    width: 160,
+    height: 160,
+    overflow: "hidden",
   },
   legendContainer: {
     justifyContent: "center",
-    marginLeft: 12,
-    minWidth: 130,
+    marginLeft: 14,
+    minWidth: 140,
   },
   legendRowItem: {
     flexDirection: "row",
@@ -287,22 +544,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
-  legendLabelTitle: { color: theme.colors.textPrimary, fontWeight: "600" },
+  legendLabelTitle: { color: theme.colors.textPrimary, fontWeight: "700" },
   legendLabelSub: { color: theme.colors.textSecondary, fontSize: 13 },
 
   centerContainer: { alignItems: "center" },
   centerPercent: {
     fontWeight: "800",
-    fontSize: 22,
+    fontSize: 18,
     color: theme.colors.textPrimary,
   },
   centerSmall: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.textSecondary,
     marginTop: 2,
   },
   centerTitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: theme.colors.textSecondary,
     marginTop: 6,
     textTransform: "uppercase",

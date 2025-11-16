@@ -49,7 +49,6 @@ export default function ParkingLot(): JSX.Element {
           }
 
           const { state, distance, timestamp } = deviceData;
-
           const newStatus = state ? "vacant" : "parked";
 
           // Do NOT override reserved slots unless YOU want to
@@ -111,9 +110,25 @@ export default function ParkingLot(): JSX.Element {
                 ]}
                 activeOpacity={0.85}
                 onPress={() => setSelected(slot)}
+                accessibilityRole="button"
+                accessibilityLabel={`${slot.slotId} ${slot.status}`}
               >
                 <Text style={styles.tileLabel}>{slot.slotId}</Text>
-                <Text style={styles.tileStatus}>{slot.status.toUpperCase()}</Text>
+
+                {/* status capsule / pill */}
+                <View
+                  style={[
+                    styles.statusPill,
+                    slot.status === "parked" ? styles.statusPillDark : styles.statusPillLight,
+                  ]}
+                >
+                  <Text style={styles.statusPillText}>{slot.status.toUpperCase()}</Text>
+                </View>
+
+                {/* optional small distance info */}
+                {"distance" in slot && slot.distance != null && (
+                  <Text style={styles.tileSmall}>{slot.distance.toFixed(0)} cm</Text>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -145,8 +160,7 @@ export default function ParkingLot(): JSX.Element {
                 </Text>
                 {"distance" in (selected || {}) && selected?.distance != null && (
                   <Text style={styles.sectionRow}>
-                    <Text style={styles.bold}>Distance:</Text>{" "}
-                    {selected.distance.toFixed(1)} cm
+                    <Text style={styles.bold}>Distance:</Text> {selected.distance.toFixed(1)} cm
                   </Text>
                 )}
               </View>
@@ -181,19 +195,33 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
       },
-      android: { elevation: 5 },
+      android: { elevation: 3 },
     }),
   },
   tileLabel: { color: "#fff", fontWeight: "800", fontSize: 20 },
-  tileStatus: {
+  tileSmall: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 12,
-    marginTop: 4,
-    textTransform: "uppercase",
+    fontSize: 10,
+    marginTop: 6,
+    opacity: 0.95,
   },
+
+  // status pill (top-right)
+  statusPill: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  statusPillText: { fontSize: 10, color: "#fff", fontWeight: "700" },
+  statusPillDark: { backgroundColor: "rgba(0,0,0,0.22)" },
+  statusPillLight: { backgroundColor: "rgba(255,255,255,0.12)" },
+
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
