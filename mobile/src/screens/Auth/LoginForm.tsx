@@ -13,9 +13,7 @@ import { theme } from "../../styles/theme";
 
 /**
  * LoginForm
- * Props:
- *  - expectedRole?: "Admin" | "Parker" (if provided, require user.role === expectedRole)
- *  - onSuccess: (user) => void
+ * Stores the FULL user as "currentUser" after successful login.
  */
 export default function LoginForm({
   expectedRole,
@@ -37,6 +35,7 @@ export default function LoginForm({
     }
 
     setLoading(true);
+
     try {
       const raw = await AsyncStorage.getItem("users");
       const users = raw ? JSON.parse(raw) : [];
@@ -52,15 +51,19 @@ export default function LoginForm({
         return;
       }
 
+      // Role check (Admin/User)
       if (expectedRole && found.role !== expectedRole) {
         Alert.alert(
           "Wrong role",
-          `This login requires role "${expectedRole}". Your account is "${found.role}".`
+          `This login requires role "${expectedRole}". Your account role is "${found.role}".`
         );
         return;
       }
 
-      // success
+      // save name
+      await AsyncStorage.setItem("currentUser", JSON.stringify(found));
+
+      // pass user to parent callback
       onSuccess(found);
     } catch (err) {
       console.error("Login error:", err);

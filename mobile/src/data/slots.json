@@ -1,0 +1,21 @@
+[
+  { "slotId": "A1", "status": "vacant",  "owner": null,               "area": "North" },
+  { "slotId": "A2", "status": "reserved","owner": "john@example.com", "area": "North" },
+  { "slotId": "A3", "status": "parked",  "owner": "carol@example.com","area": "North" },
+  { "slotId": "A4", "status": "vacant",  "owner": null,               "area": "North" },
+
+  { "slotId": "B1", "status": "reserved","owner": "mike@example.com", "area": "East" },
+  { "slotId": "B2", "status": "vacant",  "owner": null,               "area": "East" },
+  { "slotId": "B3", "status": "parked",  "owner": "sara@example.com", "area": "East" },
+  { "slotId": "B4", "status": "vacant",  "owner": null,               "area": "East" },
+
+  { "slotId": "C1", "status": "vacant",  "owner": null,               "area": "South" },
+  { "slotId": "C2", "status": "reserved","owner": "alex@example.com", "area": "South" },
+  { "slotId": "C3", "status": "parked",  "owner": "tina@example.com", "area": "South" },
+  { "slotId": "C4", "status": "vacant",  "owner": null,               "area": "South" },
+
+  { "slotId": "D1", "status": "vacant",  "owner": null,               "area": "West" },
+  { "slotId": "D2", "status": "reserved","owner": "emma@example.com", "area": "West" },
+  { "slotId": "D3", "status": "parked",  "owner": "daniel@example.com","area": "West" },
+  { "slotId": "D4", "status": "vacant",  "owner": null,                "area": "West" }
+]

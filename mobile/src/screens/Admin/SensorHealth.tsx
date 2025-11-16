@@ -135,7 +135,7 @@ export default function SensorHealth(): JSX.Element {
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.header}>Sensor Health</Text>
-          <Text style={styles.subheader}>Live ultrasonic sensor status</Text>
+          <Text style={styles.subheader}>Live Ultrasonic Sensor Status</Text>
         </View>
 
         <Pressable style={styles.refreshBtn} onPress={loadSensors}>
