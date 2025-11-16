@@ -14,7 +14,7 @@ export default function UserLogin() {
 
   return (
     <View style={styles.screen}>
-      <LoginForm expectedRole="Parker" onSuccess={onSuccess} showGuest={true} />
+      <LoginForm expectedRole="User" onSuccess={onSuccess} showGuest={true} />
     </View>
   );
 }
